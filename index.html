@@ -391,6 +391,41 @@
   .banner-error{background:var(--danger-soft);color:var(--danger);}
   .banner svg{width:18px;height:18px;flex:none;margin-top:1px;}
 
+  .toggle-row{display:flex;align-items:center;gap:12px;margin:14px 0 10px;}
+  .toggle-switch{position:relative;display:inline-block;width:46px;height:26px;flex:none;}
+  .toggle-switch input{opacity:0;width:0;height:0;position:absolute;}
+  .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);transition:.18s;border-radius:999px;}
+  .toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#fff;transition:.18s;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .toggle-switch input:checked + .toggle-slider{background:var(--teal);}
+  .toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px);}
+  .toggle-switch input:focus-visible + .toggle-slider{outline:2px solid var(--teal);outline-offset:2px;}
+  .toggle-label{font-weight:700;font-size:15px;cursor:default;}
+
+  .page-intro{
+    background:var(--teal-soft);color:var(--teal);border-radius:var(--radius-m);
+    margin-bottom:18px;padding:0;overflow:hidden;
+  }
+  .page-intro summary{
+    list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+    padding:14px 18px;font-weight:700;font-size:14.5px;user-select:none;
+  }
+  .page-intro summary::-webkit-details-marker{display:none;}
+  .page-intro summary svg{width:18px;height:18px;flex:none;}
+  .page-intro summary .pi-text{flex:1;}
+  .page-intro summary .pi-chevron{margin-left:0;transition:transform .15s ease;width:16px;height:16px;flex:none;}
+  .page-intro[open] summary .pi-chevron{transform:rotate(180deg);}
+  .page-intro summary .pi-tag{
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    background:var(--surface);color:var(--teal);border-radius:999px;padding:2px 9px;flex:none;
+  }
+  .page-intro .pi-body{padding:0 18px 16px 46px;font-size:14.5px;line-height:1.65;}
+  .page-intro .pi-body p{margin:0 0 10px;}
+  .page-intro .pi-body p:last-child{margin-bottom:0;}
+  .page-intro .pi-body ul{margin:0 0 10px;padding-left:20px;}
+  .page-intro .pi-body li{margin-bottom:4px;}
+  .aud-kids .page-intro{background:var(--kid-blue-soft);color:var(--kid-ink);}
+  .aud-kids .page-intro .pi-tag{color:var(--kid-blue);}
+
   .loader{display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:14px;padding:20px 0;}
   .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:spin 0.8s linear infinite;flex:none;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -485,11 +520,12 @@
   .print-only-tag{display:none;}
   .lecture-print-text{display:none;}
   .lecture-print-title, .lecture-print-ref{display:none;}
+  .devo-print-prayer{display:none;}
   @media print{
     body{background:#fff !important;}
     .topbar, .weekstrip, .back-btn, #gloss-sheet, #gloss-sheet-backdrop,
     .btn, .btn-row, #sw-progress-panel, .section.host, .footer-note,
-    #sw-save-status, .banner, .no-print{ display:none !important; }
+    #sw-save-status, .banner, .no-print, .page-intro{ display:none !important; }
     .wrap, .wrap-narrow{ max-width:100% !important; padding:0 !important; }
     .section{ box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; background:#fff !important; color:#111 !important; }
     .story-text, .summary-text, p, li, label{ color:#111 !important; }
@@ -502,6 +538,9 @@
     .lecture-print-text{ display:block !important; white-space:pre-wrap; font-size:14.5px; line-height:1.7; color:#111 !important; }
     .lecture-print-title{ display:block !important; font-family:var(--font-display); font-size:25px; margin-bottom:4px; color:#111 !important; }
     .lecture-print-ref{ display:block !important; font-size:12.5px; color:#333 !important; margin-bottom:16px; }
+    .devo-print-prayer{ display:block !important; margin-top:16px; padding-top:14px; border-top:1px solid #999; font-size:14.5px; line-height:1.7; color:#111 !important; }
+    .kids-block{ break-inside:avoid; border:1px solid #ccc !important; background:#fff !important; }
+    .kids-block *{ color:#111 !important; }
   }
 </style>
 </head>
@@ -577,6 +616,21 @@
     ["pentecostal","Pentecostal / Charismatic"],["anglican","Anglican / Episcopal"],
     ["orthodox","Orthodox"],["nondenom","Non-Denominational Evangelical"],["other","Other"]
   ];
+
+  var ROLES_TAGS = [
+    ["pastor","Pastor / Ministry Leader"],["elder","Elder / Deacon"],
+    ["mom","Mom"],["dad","Dad"],["grandparent","Grandparent"],
+    ["daughter","Daughter"],["son","Son"],["caregiver","Caregiver"],
+    ["student","Student"],["teacher","Teacher"],["retired","Retired"],
+    ["single","Single"],["married","Married"],["widowed","Widowed"]
+  ];
+  function roleTagLabel(id){
+    var f = ROLES_TAGS.filter(function(x){return x[0]===id;});
+    return f.length ? f[0][1] : id;
+  }
+  function rolesLabelJoined(roles){
+    return (roles||[]).map(roleTagLabel).join(", ");
+  }
 
   var GROUP_TYPES = [
     ["alone","Just Me (Solo Study)"],
@@ -1072,9 +1126,10 @@
   function memberSnapshot(me){
     return {
       name: me.name, age: me.age, gender: me.gender,
+      personalize: me.personalize !== false,
       faithStage: me.faithStage || "", favoriteVerse: me.favoriteVerse || "",
       role: me.role || "", hobbies: me.hobbies || "", lifeSeason: me.lifeSeason || "",
-      about: me.about || "", isChild: !!me.isChild, isTeen: !!me.isTeen
+      about: me.about || "", roles: me.roles || [], isChild: !!me.isChild, isTeen: !!me.isTeen
     };
   }
   function on(id, evt, fn){
@@ -1151,9 +1206,11 @@
   function personDoc(me){
     return {
       personId: me.id, name: me.name, age: me.age, gender: me.gender,
+      personalize: me.personalize !== false,
       faithStage: me.faithStage||"", favoriteVerse: me.favoriteVerse||"",
+      denomination: me.denomination||"none",
       role: me.role||"", hobbies: me.hobbies||"", lifeSeason: me.lifeSeason||"",
-      about: me.about||"", isChild: !!me.isChild, isTeen: !!me.isTeen,
+      about: me.about||"", roles: me.roles||[], isChild: !!me.isChild, isTeen: !!me.isTeen,
       pin: me.pin||"", updatedAt: new Date().toISOString()
     };
   }
@@ -1263,7 +1320,7 @@
   };
   var pastorIndexState = {category:"All"};
   var pastorStudyState = {};   // weekIndex -> {ideasOpen, ideasLoading, ideas, ideasError, buildOpen, buildMinutes, buildSeries, buildWeeks}
-  var occasionState = {pickedKeys:[], custom:"", series:"single", weeks:3, minutes:20};
+  var occasionState = {pickedKeys:[], custom:"", series:"single", weeks:3, minutes:20, denom:null};
   var OCCASION_MAX_PICKS = 3;
   var lectureLoad = {id:null, pending:false};
 
@@ -1329,6 +1386,7 @@
     else html = screenLoading();
     root.innerHTML = topbarHtml() + html;
     wireGlobal();
+    wirePageIntros();
     if (n.screen === "profile") wireProfile();
     else if (n.screen === "signIn") wireSignIn();
     else if (n.screen === "signInCode") wireSignInCode();
@@ -1381,6 +1439,38 @@
     return parts.length ? (",{"+parts.join(",")+"}") : "";
   }
 
+  /* ---------- per-page walkthroughs (first-visit help, for non-tech-savvy users) ---------- */
+
+  // A small collapsible instructions box that opens automatically the first time
+  // someone lands on a given screen (tracked in localStorage), then stays collapsed
+  // (but still available to reopen with one tap) after that. Written for elderly
+  // users and kids who won't read a PDF guide — plain words, short sentences.
+  function pageIntroHtml(key, summaryText, bodyHtml){
+    var seen = safeGet("hh_seen_" + key) === "1";
+    return '' +
+    '<details class="page-intro" data-intro-key="' + key + '"' + (seen ? '' : ' open') + '>' +
+      '<summary>' +
+        ICON_INFO +
+        '<span class="pi-text">' + esc(summaryText) + '</span>' +
+        '<span class="pi-tag">' + (seen ? 'How this page works' : 'New here? Read this first') + '</span>' +
+        '<svg class="pi-chevron" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</summary>' +
+      '<div class="pi-body">' + bodyHtml + '</div>' +
+    '</details>';
+  }
+
+  // Marks a box "seen" the moment someone opens or closes it — NOT on every render,
+  // so re-rendering the screen (which happens constantly, e.g. on every keystroke's
+  // save-tick or button toggle) never yanks an open box shut out from under someone
+  // mid-read.
+  function wirePageIntros(){
+    document.querySelectorAll(".page-intro[data-intro-key]").forEach(function(det){
+      det.addEventListener("toggle", function(){
+        safeSet("hh_seen_" + det.getAttribute("data-intro-key"), "1");
+      });
+    });
+  }
+
   function wireGlobal(){}
 
   function screenLoading(){
@@ -1392,41 +1482,59 @@
   function screenProfile(){
     var editing = state.me;
     var f = function(k){ return editing && editing[k] ? editing[k] : ""; };
+    var personalizeOn = !(editing && editing.personalize === false);
     return '' +
     '<div class="wrap-narrow">' +
       '<div class="center" style="margin:30px 0 26px;">' +
         '<div class="hero-medallion">'+ICON_HERO_CROSS+'</div>' +
         '<h1 style="font-size:30px;margin-top:6px;">Welcome to Honouring Him</h1>' +
         '<div class="flourish"></div>' +
-        '<p class="muted" style="margin-top:14px;font-size:15.5px;">A Bible study made for your people &mdash; alone, with family, or with a group anywhere in the world. Tell us a bit about yourself, and every story, question, and activity will be shaped around who\'s actually reading it.</p>' +
+        '<p class="muted" style="margin-top:14px;font-size:15.5px;">A Bible study made for your people &mdash; alone, with family, or with a group anywhere in the world.</p>' +
+      '</div>' +
+      '<div class="banner banner-info" style="margin-bottom:20px;align-items:flex-start;">' +
+        '<span>'+ICON_INFO+'</span>' +
+        '<span><strong>Only your name is required.</strong> Everything else on this page is optional. Use the switch below to choose: turn personalizing ON and share as much or as little as you like &mdash; the more you share, the more your Bible study stories will feel written specifically for you. Turn it OFF and we\'ll only ever use your name to say hello &mdash; every Bible study story will feature new, made-up people and situations instead of your own. You can change your mind and flip it any time.</span>' +
       '</div>' +
       '<div class="card card-feature">' +
         '<span class="eyebrow">The basics</span>' +
-        '<div class="field" style="margin-top:12px;"><label for="pf-name">Your name</label><input class="input" id="pf-name" placeholder="e.g. Maria" value="'+esc(f("name"))+'"></div>' +
-        '<div class="row2">' +
-          '<div class="field"><label for="pf-age">Your age</label><input class="input" id="pf-age" type="number" min="4" max="119" placeholder="e.g. 34" value="'+esc(f("age"))+'"></div>' +
-          '<div class="field"><label for="pf-gender">Gender</label><select class="select" id="pf-gender">' +
+        '<div class="field" style="margin-top:12px;"><label for="pf-name">Your name <span class="hint">(the only thing we need)</span></label><input class="input" id="pf-name" placeholder="e.g. Maria" value="'+esc(f("name"))+'"></div>' +
+        '<div class="field"><label for="pf-age">Your age <span class="hint">(optional &mdash; only used to keep content age-appropriate for you, like for a child)</span></label><input class="input" id="pf-age" type="number" min="4" max="119" placeholder="e.g. 34, or leave blank" value="'+esc(f("age"))+'"></div>' +
+        '<div class="field"><label for="pf-denom">Denomination or church tradition <span class="hint">(optional &mdash; shapes the language in your studies, devotionals, and sermons; not shared with anyone)</span></label><select class="select" id="pf-denom">' +
+          DENOMS.map(function(d){ return '<option value="'+d[0]+'"'+((editing&&editing.denomination===d[0])?" selected":"")+'>'+d[1]+'</option>'; }).join("") +
+        '</select></div>' +
+        '<div class="divider"></div>' +
+        '<div class="toggle-row">' +
+          '<label class="toggle-switch"><input type="checkbox" id="pf-personalize"'+(personalizeOn?" checked":"")+'><span class="toggle-slider"></span></label>' +
+          '<span class="toggle-label" id="pf-personalize-label">Personalize my Bible study stories with my info</span>' +
+        '</div>' +
+        '<p class="hint" id="pf-personalize-offnote" style="margin:-6px 0 14px;"'+(personalizeOn?" hidden":"")+'>Got it &mdash; we\'ll just use your name to say hello. Every Bible study story will feature new, made-up people and situations instead of your own.</p>' +
+        '<div id="pf-personal-fields"'+(personalizeOn?"":" hidden")+'>' +
+          '<div class="field"><label for="pf-gender">Gender <span class="hint">(optional)</span></label><select class="select" id="pf-gender">' +
             GENDERS.map(function(g){ return '<option value="'+g[0]+'"'+((editing&&editing.gender===g[0])?" selected":"")+'>'+g[1]+'</option>'; }).join("") +
           '</select></div>' +
+          '<span class="eyebrow">Your faith journey</span>' +
+          '<div class="field" style="margin-top:12px;"><label for="pf-faith">Where are you at right now? <span class="hint">(helps set the right tone &mdash; never judged)</span></label><select class="select" id="pf-faith">' +
+            '<option value="">Prefer not to say</option>' +
+            FAITH_STAGES.map(function(s){ return '<option value="'+s[0]+'"'+((editing&&editing.faithStage===s[0])?" selected":"")+'>'+s[1]+'</option>'; }).join("") +
+          '</select></div>' +
+          '<div class="field"><label for="pf-verse">A verse or Bible story close to your heart <span class="hint">(optional)</span></label>' +
+            '<input class="input" id="pf-verse" placeholder="e.g. Psalm 23, or the Prodigal Son" value="'+esc(f("favoriteVerse"))+'"></div>' +
+          '<div class="divider"></div>' +
+          '<span class="eyebrow">A little more about you</span>' +
+          '<div class="row2" style="margin-top:12px;">' +
+            '<div class="field"><label for="pf-role">Role or occupation <span class="hint">(optional)</span></label><input class="input" id="pf-role" placeholder="e.g. teacher, retired, student" value="'+esc(f("role"))+'"></div>' +
+            '<div class="field"><label for="pf-hobbies">Hobbies &amp; interests <span class="hint">(optional)</span></label><input class="input" id="pf-hobbies" placeholder="e.g. hiking, baking, guitar" value="'+esc(f("hobbies"))+'"></div>' +
+          '</div>' +
+          '<div class="field"><label for="pf-season">What\'s going on in your life right now? <span class="hint">(optional &mdash; a new job, a new baby, a hard season, anything)</span></label>' +
+            '<input class="input" id="pf-season" placeholder="e.g. just started college, expecting our first baby" value="'+esc(f("lifeSeason"))+'"></div>' +
+          '<div class="field"><label for="pf-about">Anything else? <span class="hint">(optional)</span></label>' +
+            '<textarea class="textarea" id="pf-about" placeholder="Anything that would help make your stories feel like yours">'+esc(f("about"))+'</textarea></div>' +
+          '<div class="field"><label>Life &amp; roles <span class="hint">(optional &mdash; pick any that fit you, as many as you like: a pastor, a mom, a student, an elder, retired, a daughter&hellip; anything that helps make your stories feel more like your own life)</span></label>' +
+            '<div class="choice-grid" id="pf-roles">' +
+              ROLES_TAGS.map(function(r){ return '<button type="button" class="choice'+((editing&&editing.roles&&editing.roles.indexOf(r[0])!==-1)?" active":"")+'" data-role="'+r[0]+'">'+r[1]+'</button>'; }).join("") +
+            '</div>' +
+          '</div>' +
         '</div>' +
-        '<div class="divider"></div>' +
-        '<span class="eyebrow">Your faith journey</span>' +
-        '<div class="field" style="margin-top:12px;"><label for="pf-faith">Where are you at right now? <span class="hint">(helps set the right tone &mdash; never judged)</span></label><select class="select" id="pf-faith">' +
-          '<option value="">Prefer not to say</option>' +
-          FAITH_STAGES.map(function(s){ return '<option value="'+s[0]+'"'+((editing&&editing.faithStage===s[0])?" selected":"")+'>'+s[1]+'</option>'; }).join("") +
-        '</select></div>' +
-        '<div class="field"><label for="pf-verse">A verse or Bible story close to your heart <span class="hint">(optional)</span></label>' +
-          '<input class="input" id="pf-verse" placeholder="e.g. Psalm 23, or the Prodigal Son" value="'+esc(f("favoriteVerse"))+'"></div>' +
-        '<div class="divider"></div>' +
-        '<span class="eyebrow">A little more about you</span>' +
-        '<div class="row2" style="margin-top:12px;">' +
-          '<div class="field"><label for="pf-role">Role or occupation <span class="hint">(optional)</span></label><input class="input" id="pf-role" placeholder="e.g. teacher, retired, student" value="'+esc(f("role"))+'"></div>' +
-          '<div class="field"><label for="pf-hobbies">Hobbies &amp; interests <span class="hint">(optional)</span></label><input class="input" id="pf-hobbies" placeholder="e.g. hiking, baking, guitar" value="'+esc(f("hobbies"))+'"></div>' +
-        '</div>' +
-        '<div class="field"><label for="pf-season">What\'s going on in your life right now? <span class="hint">(optional &mdash; a new job, a new baby, a hard season, anything)</span></label>' +
-          '<input class="input" id="pf-season" placeholder="e.g. just started college, expecting our first baby" value="'+esc(f("lifeSeason"))+'"></div>' +
-        '<div class="field"><label for="pf-about">Anything else? <span class="hint">(optional)</span></label>' +
-          '<textarea class="textarea" id="pf-about" placeholder="Anything that would help make your stories feel like yours">'+esc(f("about"))+'</textarea></div>' +
         '<div id="pf-err"></div>' +
         '<button class="btn btn-primary btn-block" id="pf-save">Continue</button>' +
         '<p class="hint center" style="margin-top:12px;">Saved to this device automatically. <button type="button" class="switch-link" id="pf-goto-signin" style="font-size:12.5px;">Already have a Honouring Him sign-in code?</button></p>' +
@@ -1436,22 +1544,47 @@
 
   function wireProfile(){
     on("pf-goto-signin","click", function(){ go("signIn"); });
+    document.querySelectorAll("#pf-roles [data-role]").forEach(function(btn){
+      btn.addEventListener("click", function(){ btn.classList.toggle("active"); });
+    });
+    var pzToggle = document.getElementById("pf-personalize");
+    var pzFields = document.getElementById("pf-personal-fields");
+    var pzOffNote = document.getElementById("pf-personalize-offnote");
+    if (pzToggle){
+      pzToggle.addEventListener("change", function(){
+        if (pzFields) pzFields.hidden = !pzToggle.checked;
+        if (pzOffNote) pzOffNote.hidden = pzToggle.checked;
+      });
+    }
     on("pf-save","click", function(){
       var name = val("pf-name").trim();
-      var age = parseInt(val("pf-age"), 10);
-      var gender = val("pf-gender");
+      var ageRaw = val("pf-age").trim();
+      var age = ageRaw ? parseInt(ageRaw, 10) : null;
       var errEl = document.getElementById("pf-err");
       if (!name){ errEl.innerHTML = errorBanner("Please enter your name."); return; }
-      if (!age || age < 1 || age > 119){ errEl.innerHTML = errorBanner("Please enter a valid age."); return; }
+      if (ageRaw && (isNaN(age) || age < 1 || age > 119)){ errEl.innerHTML = errorBanner("Please enter a valid age, or leave it blank."); return; }
+      var personalize = pzToggle ? !!pzToggle.checked : true;
       var me = state.me || {id: uid()};
       var isNew = !state.me;
-      me.name = name; me.age = age; me.gender = gender;
-      me.faithStage = val("pf-faith");
-      me.favoriteVerse = val("pf-verse").trim();
-      me.role = val("pf-role").trim();
-      me.hobbies = val("pf-hobbies").trim();
-      me.lifeSeason = val("pf-season").trim();
-      me.about = val("pf-about").trim();
+      me.name = name; me.age = age;
+      me.denomination = val("pf-denom");
+      me.personalize = personalize;
+      if (personalize){
+        me.gender = val("pf-gender");
+        me.faithStage = val("pf-faith");
+        me.favoriteVerse = val("pf-verse").trim();
+        me.role = val("pf-role").trim();
+        me.hobbies = val("pf-hobbies").trim();
+        me.lifeSeason = val("pf-season").trim();
+        me.about = val("pf-about").trim();
+        me.roles = Array.prototype.map.call(document.querySelectorAll("#pf-roles [data-role].active"), function(b){ return b.getAttribute("data-role"); });
+      } else {
+        // Personalizing is off: nothing here should be used to shape stories,
+        // so we don't keep any of it around either — only name, age (for
+        // age-appropriate content), and denomination (teaching tone) survive.
+        me.gender = ""; me.faithStage = ""; me.favoriteVerse = ""; me.role = "";
+        me.hobbies = ""; me.lifeSeason = ""; me.about = ""; me.roles = [];
+      }
       me.isChild = isChildAge(age); me.isTeen = isTeenAge(age);
       state.me = me;
       saveProfile(me);
@@ -1498,6 +1631,11 @@
   function screenSignInCode(){
     var me = state.me || {};
     return '<div class="wrap-narrow">' +
+      pageIntroHtml("signInCode",
+        "What is this code for?",
+        '<p>This is <strong>your own personal code</strong> — think of it like a library card number just for you. Write it down or take a screenshot.</p>' +
+        '<p>Coming back later, or opening the app on a different phone or computer? Tap <strong>"Already have a Honouring Him sign-in code?"</strong> on the first page and type this in — it brings back your name, your groups, and everything you\'ve saved.</p>' +
+        '<p>You don\'t have to add a PIN below. It just adds one more small layer of protection if you want it.</p>') +
       '<div class="card center card-feature">' +
         '<span class="eyebrow">Your sign-in code</span>' +
         '<h1 style="font-size:26px;margin-top:10px;">Save this to find your profile again</h1>' +
@@ -1591,9 +1729,11 @@
           }
           var me = {
             id: p.personId, name: p.name, age: p.age, gender: p.gender,
+            personalize: p.personalize !== false,
             faithStage: p.faithStage||"", favoriteVerse: p.favoriteVerse||"",
+            denomination: p.denomination||"none",
             role: p.role||"", hobbies: p.hobbies||"", lifeSeason: p.lifeSeason||"",
-            about: p.about||"", isChild: !!p.isChild, isTeen: !!p.isTeen,
+            about: p.about||"", roles: p.roles||[], isChild: !!p.isChild, isTeen: !!p.isTeen,
             pin: p.pin||"", signInCode: code
           };
           state.me = me;
@@ -1619,6 +1759,17 @@
   function screenHome(){
     var html = '<div class="wrap">';
     html += '<div style="margin:22px 0 6px;"><span class="eyebrow">Welcome back</span><h1 style="font-size:30px;margin-top:4px;">Hi, '+esc(state.me.name)+'</h1><div class="flourish left"></div></div>';
+    html += pageIntroHtml("home",
+      "How does Honouring Him work?",
+      '<p>This is your home screen. Tap one of the big buttons below to get started:</p>' +
+      '<ul>' +
+        '<li><strong>Study Alone</strong> &mdash; a Bible study just for you, at your own pace.</li>' +
+        '<li><strong>Host a Group</strong> &mdash; start a study and get a code to share with family or friends so they can join you.</li>' +
+        '<li><strong>Join a Group</strong> &mdash; someone gave you a code? Type it in here to join their study.</li>' +
+        '<li><strong>Pastor &amp; Leader Tools</strong> &mdash; build a printable sermon or lecture.</li>' +
+        '<li><strong>Daily Devotional</strong> &mdash; a short, personal reading for every day, with a calendar to track your streak.</li>' +
+      '</ul>' +
+      '<p>Need help anywhere in the app? The <strong>Help</strong> button at the top of every page has a full walkthrough, and this box (with the '+ICON_INFO+' icon) is on every page too &mdash; tap it any time to see it again.</p>');
     html += '<div class="home-actions">';
     html += '<button class="action-card" onclick="HL.startSolo()"><span class="icon">'+ICON_ALONE+'</span><h4>Study Alone</h4><p>Just you and the Word &mdash; no group needed.</p></button>';
     html += '<button class="action-card" onclick="HL.go(\'createGroup\')"><span class="icon">'+ICON_TOGETHER+'</span><h4>Host a Group</h4><p>Start a study for family or friends, anywhere.</p></button>';
@@ -1694,7 +1845,7 @@
   function startSolo(){
     createGroupInternal({
       name: state.me.name + "'s Study",
-      denomination: "none",
+      denomination: (state.me && state.me.denomination) || "none",
       groupType: "alone",
       groupTypeCustom: ""
     }, function(code){ go("groupHome", {code: code}); });
@@ -1702,11 +1853,19 @@
 
   /* ---------- CREATE GROUP ---------- */
 
-  var createState = {denom:"none", type:"women", customVal:""};
+  var createState = {denom:"none", type:"women", customVal:"", denomTouched:false};
 
   function screenCreateGroup(){
+    if (!createState.denomTouched && state.me && state.me.denomination){
+      createState.denom = state.me.denomination;
+    }
     var html = '<div class="wrap-narrow">';
     html += '<div style="margin:22px 0 20px;"><span class="eyebrow">Host a new group</span><h1 style="font-size:28px;margin-top:4px;">Set up your Bible study</h1><p class="muted" style="margin-top:8px;">You\'ll pick the exact study next. Everyone in the group sees the same readings and questions &mdash; you\'ll just be the one running the meetings.</p></div>';
+    html += pageIntroHtml("createGroup",
+      "How does hosting a group work?",
+      '<p>Fill in a name for your group, pick the denomination that fits (or "none" is fine), and choose who\'s doing the study together.</p>' +
+      '<p>After you tap <strong>Create Group</strong>, you\'ll get a short <strong>group code</strong>. Share that code with the people you want in your group &mdash; they\'ll use it on the <strong>Join a Group</strong> screen to hop in.</p>' +
+      '<p>As the host, you pick which study you do next and everyone in the group sees the same weekly readings, questions, and story together.</p>');
     html += '<div class="card">';
     html += '<div class="field"><label for="cg-name">Group name</label><input class="input" id="cg-name" placeholder="e.g. Women\'s Wednesday Study" value="'+esc(createState.nameVal||"")+'"></div>';
     html += '<div class="field"><label>Denomination</label><div class="choice-grid">' +
@@ -1726,6 +1885,7 @@
     document.querySelectorAll("[data-denom]").forEach(function(btn){
       btn.addEventListener("click", function(){
         createState.denom = btn.getAttribute("data-denom");
+        createState.denomTouched = true;
         document.querySelectorAll("[data-denom]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-denom")===createState.denom); });
       });
     });
@@ -1805,6 +1965,10 @@
   function screenJoinGroup(){
     return '<div class="wrap-narrow">' +
       '<div style="margin:22px 0 20px;"><span class="eyebrow">Join a group</span><h1 style="font-size:28px;margin-top:4px;">Enter your group\'s code</h1><p class="muted" style="margin-top:8px;">Ask whoever is hosting your study for their 6-character code.</p></div>' +
+      pageIntroHtml("joinGroup",
+        "Where do I get a code?",
+        '<p>Whoever is <strong>hosting</strong> the group (a friend, family member, or your pastor) will get a 6-character code when they set it up, like <strong>ABC123</strong>. Ask them for it.</p>' +
+        '<p>Type it into the box below exactly as they gave it to you (capital letters or lowercase both work) and tap <strong>Join Group</strong>. You\'ll land right in their study, with the same weekly readings and questions they see.</p>') +
       '<div class="card">' +
         '<div class="field"><label for="jg-code">Group code</label><input class="input" id="jg-code" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:.1em;font-weight:700;" maxlength="6"></div>' +
         '<div id="jg-err"></div>' +
@@ -1875,6 +2039,14 @@
     if (!isAlone) html += '<p class="muted" style="margin-top:6px;">'+esc(groupTypeLabel(g.groupType,g.groupTypeCustom))+' &middot; '+esc(denomLabel(g.denomination))+' &middot; Code: <strong style="letter-spacing:.08em;">'+esc(g.code)+'</strong></p>';
     html += '</div>';
 
+    html += pageIntroHtml("groupHome",
+      isAlone ? "What happens on this page?" : "What happens on this page?",
+      isAlone ?
+        ('<p>This is your solo study\'s home base. If you haven\'t picked a study yet, tap <strong>Browse Bible Studies</strong> to choose one. Once you have, tap <strong>Continue Study</strong> any time to pick up right where you left off.</p>') :
+        ('<p>This is your group\'s home base. Everyone you see listed below is part of this group.</p>' +
+         '<p>If you\'re the <strong>host</strong>, you choose which Bible study the group does &mdash; tap <strong>Browse Bible Studies</strong> to pick one. Everyone else just waits for you to choose, then taps <strong>Continue Study</strong> once it starts.</p>' +
+         '<p>Share the code at the top of this page with anyone else you want to invite &mdash; they enter it on the <strong>Join a Group</strong> screen.</p>'));
+
     if (!isAlone){
       var members = Object.keys(g.membersInfo||{}).map(function(id){
         var m = g.membersInfo[id];
@@ -1935,6 +2107,11 @@
     var isHost = g ? g.hostPersonId === state.me.id : true;
     var html = '<div class="wrap">';
     html += '<div style="margin:22px 0 18px;"><span class="eyebrow">'+(g?esc(g.name):"")+'</span><h1 style="font-size:28px;margin-top:4px;">Choose a Bible Study</h1><p class="muted" style="margin-top:8px;">From single-topic dives to a full three-month journey through the Gospels. Complete every study here, and you\'ll have walked through the whole story of the Bible.</p></div>';
+    html += pageIntroHtml("studyIndex",
+      "How do I pick a study?",
+      '<p>Tap the tabs (like "All", "Marriage", "Grief") to filter by topic, or just scroll through everything.</p>' +
+      '<p>Tap any study card to see what it includes, then tap it again (or its "Start" button) to begin. It becomes the group\'s current study, and everyone continues week by week from the <strong>Group Home</strong> page.</p>' +
+      (isHost ? '<p>You\'re the host, so you also choose who this study is written for above (kids, adults, or a mixed family) &mdash; that changes how simple or in-depth the weekly content is.</p>' : ''));
     var audience = (g && g.audience) || "mixed";
     html += '<div class="section card-tight" style="margin-bottom:18px;">';
     html += '<div class="section-head" style="margin-bottom:10px;"><h3 style="font-size:16px;">Who is this study for?</h3></div>';
@@ -2101,6 +2278,12 @@
       html += '<button class="weekdot '+cls+'" data-week="'+i+'" title="Week '+(i+1)+': '+esc(study.weeks[i].theme)+'">'+(i+1)+'</button>';
     }
     html += '</div>';
+
+    html += pageIntroHtml("studyWeek",
+      "How does this week work?",
+      '<p>The numbered dots above are the weeks of this study &mdash; tap any dot to jump to that week (a filled-in dot means it\'s already been prepared).</p>' +
+      (isHost ? '<p>As the host, tap <strong>Prepare This Week</strong> the first time you open a week &mdash; it writes that week\'s reading, story, and questions. After that, everyone just reads, answers, and saves as they go.</p>' : '<p>Your host prepares each week before it\'s ready to read. Once it is, read through it, answer the questions, and your answers save automatically as you go.</p>') +
+      '<p>Want a paper copy? Every week has a <strong>Print</strong> option near the top of the page so you can print the whole lesson.</p>');
 
     if (!weekData){
       var genKey = code+"|"+studyId+"|"+weekIndex;
@@ -2390,12 +2573,21 @@
     });
   }
 
+  function isMinimalProfile(m){
+    if (m.personalize === false) return true;
+    return !m.role && !m.hobbies && !m.faithStage && !m.lifeSeason && !m.favoriteVerse && !m.about && !(m.roles && m.roles.length);
+  }
+
   function buildWeekPrompt(g, study, week, weekIndex, isLast){
     var members = Object.keys(g.membersInfo||{}).map(function(id){ return g.membersInfo[id]; });
     if (!members.length) members = [state.me];
     var anyChild = members.some(function(m){ return m.isChild; });
     var youngest = members.reduce(function(a,m){ return (m.age!=null && m.age < a) ? m.age : a; }, 200);
+    var allMinimal = members.every(isMinimalProfile);
     var memberLines = members.map(function(m){
+      if (m.personalize === false){
+        return "- " + m.name + " (chose NOT to share any personal details or have their real life reflected \u2014 use only their name, only to address them; never invent details about them, and do not base their part of the story on anything about their actual life).";
+      }
       var g2 = genderLabel(m.gender);
       var bits = [];
       if (m.role) bits.push(m.role);
@@ -2403,17 +2595,23 @@
       if (m.faithStage) bits.push("faith stage: " + faithStageLabel(m.faithStage).toLowerCase());
       if (m.lifeSeason) bits.push("going through/into: " + m.lifeSeason);
       if (m.favoriteVerse) bits.push("a verse close to their heart: " + m.favoriteVerse);
+      if (m.roles && m.roles.length) bits.push("identifies as: " + rolesLabelJoined(m.roles).toLowerCase());
       if (m.about) bits.push(m.about);
-      return "- " + m.name + ", age " + m.age + (g2 ? " (" + g2 + ")" : "") + (bits.length ? " \u2014 " + bits.join("; ") : "");
+      return "- " + m.name + (m.age!=null ? (", age " + m.age) : "") + (g2 ? " (" + g2 + ")" : "") + (bits.length ? " \u2014 " + bits.join("; ") : "");
     }).join("\n");
     var names = members.map(function(m){ return m.name; }).join(", ");
+    var isSolo = members.length === 1;
     var groupLabel = g.groupType === "alone" ? "This is a solo, individual study for just one person." : ("This group is a: " + groupTypeLabel(g.groupType, g.groupTypeCustom) + ".");
 
     var p = "You are writing one week of content for Honouring Him, a personalized Bible study app.\n\n";
     p += "GROUP: \"" + g.name + "\". " + groupLabel + "\n";
     p += "Denomination/tradition: " + denomLabel(g.denomination) + ". Keep teaching simple, warm, and Christ-centered; do not take sides on denominational disputes, but you may use natural, familiar language for this tradition.\n";
-    p += "People doing this study together:\n" + memberLines + "\n";
-    p += "Where it fits naturally (not forced every week), let these personal details quietly shape the story and questions — someone's current season of life, their interests, or the verse that means something to them.\n";
+    if (allMinimal){
+      p += "People doing this study (no one chose to have anything personalized — either they left it off, or they turned personalizing off on purpose):\n" + memberLines + "\n";
+    } else {
+      p += "People doing this study together:\n" + memberLines + "\n";
+      p += "Where it fits naturally (not forced every week), let these personal details quietly shape the story and questions — someone's current season of life, their role or interests, or the verse that means something to them. Never do this for anyone marked above as having chosen not to share/personalize — for them, use only their name to address them.\n";
+    }
     if (anyChild) p += "This group includes a child as young as " + youngest + ". Handle any frightening, violent, or mature content in the source passage gently and without graphic detail, appropriate for a child that age, no matter who the target audience below is.\n";
     var audience = g.audience || "mixed";
     if (audience === "kids") p += "IMPORTANT \u2014 AUDIENCE: Write this week specifically FOR KIDS, regardless of the ages listed above. Use simple, playful vocabulary and short sentences. Keep the story to about 300-500 words, concrete and visual. Make personalQuestions and lightStarters simple enough for a child to answer out loud.\n";
@@ -2424,14 +2622,20 @@
     p += "Reply with ONLY a JSON object with exactly these fields:\n";
     p += "{\n";
     p += '  "scriptureSummary": "A warm, clear 150-250 word retelling of ' + week.ref + ' IN YOUR OWN WORDS. Never quote a specific Bible translation verbatim — paraphrase only.",\n';
-    p += '  "story": "A vivid 600-900 word modern-day short story that helps THIS SPECIFIC group feel the lesson of \\"' + week.theme + '\\". Naturally include the real first names (' + names + ') as characters or narrator in a situation that fits their real relationship. Make it emotionally specific and well-written, not generic filler — a real dilemma with real stakes, not a tidy parable.",\n';
+    if (allMinimal){
+      p += '  "story": "A vivid 600-900 word modern-day short story that brings \\"' + week.theme + '\\" to life. Nobody in this study shared personal details, so invent a brand-new set of fictional characters (different names, ages, and situation than you would use for any other week) dealing with something ordinary that connects to this week\'s lesson. Make it emotionally specific and well-written, not generic filler — a real dilemma with real stakes, not a tidy parable.",\n';
+    } else if (isSolo){
+      p += '  "story": "A vivid 600-900 word modern-day short story that helps ' + names + ' feel the lesson of \\"' + week.theme + '\\". Naturally draw on their real details above where it fits. Vary the specific scenario and setting from how you\'d likely handle other weeks, so the stories don\'t start to feel repetitive. Make it emotionally specific and well-written, not generic filler — a real dilemma with real stakes, not a tidy parable.",\n';
+    } else {
+      p += '  "story": "A vivid 600-900 word modern-day short story that helps THIS SPECIFIC group feel the lesson of \\"' + week.theme + '\\". You do not need to feature everyone every week — instead, vary how many people the story centers on from week to week (sometimes just one, sometimes two or three), rotating whose real name and personal details anchor the story so different people are featured over the course of the study. Only use the real personal details of people who shared them above and did not choose to keep things generic; for anyone who only gave a name (or chose not to personalize), either leave them out of this week\'s story, mention only their name lightly in passing, or give them a purely invented supporting role that has nothing to do with their real life — never repeat the same treatment every week. Vary the specific scenario, setting, and any invented side characters each week so the stories feel fresh rather than repetitive. Make it emotionally specific and well-written, not generic filler — a real dilemma with real stakes, not a tidy parable.",\n';
+    }
     p += '  "bigIdea": "ONE crisp, memorable sentence (15-25 words) that captures the single takeaway of this week — the one thing worth remembering if they forget everything else. Plain language, no jargon.",\n';
     p += '  "personalQuestions": [5 reflective questions to answer ALONE, before the group meets — each one specific and concrete, never generic. Include a mix: one that recalls a real memory or experience, one that names a current struggle or habit honestly, one that examines a belief or assumption in light of the passage, and at least one that asks for one concrete next step in an ordinary part of life (not just \\"how do you feel\\")],\n';
     p += '  "lightStarters": [3 short, easy icebreaker questions everyone can answer out loud at the very start of the meeting, loosely warmed up by this week\'s theme],\n';
     p += '  "hostQuestions": [6 discussion questions ONLY the group leader sees, ordered to build depth: start with 1-2 questions about what the text actually says, move to 2-3 questions about what it means and why it\'s hard to live out, then 1-2 that push toward honest application — include at least one question substantial enough to spark real disagreement or vulnerability, not just agreement],\n';
     p += '  "leaderTips": "100-150 words of practical guidance for whoever leads this week\'s meeting: how to open, how to use the questions, what to do if the group goes quiet, rough timing.",\n';
     p += '  "takeaway": {"bigIdea": "restate the same big idea above, verbatim", "challenge": "one concrete, doable action to try this week, phrased in specific everyday terms (a conversation to have, a habit to start or stop, a moment to notice) — not a vague spiritual platitude"},\n';
-    p += '  "kidsActivity": {"title": "a fun, short, playful title with an exclamation mark", "story": "A separate 150-250 word read-aloud story written JUST for young children (ages roughly 4-10): very short sentences, simple everyday words, warm and a little silly, that brings \\"' + week.theme + '\\" to life through a child\'s-eye situation — can reuse the family\'s real names if natural. Not the same as the main story above — this one is simpler and shorter.", "instructions": "A hands-on activity (craft, simple game, coloring idea, or act-it-out scene) a child could do to connect with \\"' + week.theme + '\\", 100-150 words, concrete and easy to follow with common household items", "memoryVerse": "one short, simple verse reference and a plain-language paraphrase of it, easy for a child to memorize"},\n';
+    p += '  "kidsActivity": {"title": "a fun, short, playful title with an exclamation mark", "story": "A separate 150-250 word read-aloud story written JUST for young children (ages roughly 4-10): very short sentences, simple everyday words, warm and a little silly, that brings \\"' + week.theme + '\\" to life through a child\'s-eye situation' + (allMinimal ? " — invent a different fictional child character than the main story above" : " — can reuse the family's real names if natural") + '. Not the same as the main story above — this one is simpler and shorter.", "instructions": "A hands-on activity (craft, simple game, coloring idea, or act-it-out scene) a child could do to connect with \\"' + week.theme + '\\", 100-150 words, concrete and easy to follow with common household items", "memoryVerse": "one short, simple verse reference and a plain-language paraphrase of it, easy for a child to memorize"},\n';
     p += '  "extraForAdults": {"title": "a short title like \'Go Deeper\'", "content": "150-220 words offering a deeper optional dive for adults: could include historical/cultural background on ' + week.ref + ', a couple of related cross-reference passages to explore, and one practical challenge to try this week"}';
     if (isLast){
       p += ',\n  "finalReview": {"recap": "A warm 150-200 word recap tying the whole study \\"' + study.title + '\\" together, week by week — name the through-line, the one big story arc connecting every week\'s big idea", "reviewQuestions": [7 deep questions for the group\'s FINAL meeting, reviewing the entire study together, each concrete and specific]}';
@@ -2526,6 +2730,11 @@
     var html = '<div class="wrap">';
     html += '<div style="margin:22px 0 14px;"><span class="eyebrow">For Pastors &amp; Leaders</span><h1 style="font-size:28px;margin-top:4px;">Lecture &amp; Sermon Builder</h1>' +
       '<p class="muted" style="margin-top:8px;max-width:640px;">Browse any theme in the Honouring Him library for reading ideas, then build a print-ready lecture or sermon at the length you need &mdash; write it, rearrange it, and make it yours.</p></div>';
+    html += pageIntroHtml("pastorHub",
+      "How does the sermon builder work?",
+      '<p>Browse the topics below and tap one to see reading ideas, or tap <strong>Start From a Feeling</strong> if you\'re not sure what to teach on yet and want us to suggest passages for a specific occasion (grief, celebration, a wedding, and more).</p>' +
+      '<p>Once you pick a passage, you\'ll build a full lecture or sermon at whatever length you need. It\'s never personalized with anyone\'s name &mdash; it\'s written for a general audience, ready to print and take with you into the pulpit.</p>' +
+      '<p>Anything you build is saved automatically &mdash; find it again any time under <strong>Your saved lectures</strong> at the bottom of this page.</p>');
     html += '<div class="section card-tight" style="margin-bottom:22px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;">' +
       '<div><h4 style="font-size:15.5px;margin-bottom:4px;">Not sure what to teach on?</h4><p class="hint">Start from a feeling or occasion instead &mdash; grief, celebration, a wedding, and more &mdash; and we\'ll choose the passages.</p></div>' +
       '<button type="button" class="btn btn-primary" onclick="HL.go(\'pastorOccasion\')">'+ICON_HANDS+' Start From a Feeling</button>' +
@@ -2641,7 +2850,12 @@
     if (st.buildMinutes == null) st.buildMinutes = 20;
     if (!st.buildSeries) st.buildSeries = "single";
     if (!st.buildWeeks) st.buildWeeks = 3;
+    if (!st.buildDenom) st.buildDenom = (state.me && state.me.denomination) || "none";
     var html = '<div class="section" style="background:var(--surface);">';
+    html += '<p class="hint" style="margin-bottom:8px;">Write this for which denomination or tradition?</p>';
+    html += '<div class="choice-grid" style="margin-bottom:14px;">' + DENOMS.map(function(d){
+      return '<button type="button" class="choice'+(st.buildDenom===d[0]?" active":"")+'" data-denom-pick="'+d[0]+'" data-denom-week="'+i+'">'+d[1]+'</button>';
+    }).join("") + '</div>';
     html += '<p class="hint" style="margin-bottom:10px;">One sermon, or a series?</p>';
     html += '<div class="btn-row" style="gap:8px;margin-bottom:14px;">' +
       '<button type="button" class="choice'+(st.buildSeries==="single"?" active":"")+'" data-series-mode="single" data-series-week="'+i+'">One Sermon</button>' +
@@ -2707,6 +2921,14 @@
         render();
       });
     });
+    document.querySelectorAll("[data-denom-pick]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var i = parseInt(btn.getAttribute("data-denom-week"),10);
+        var st = pastorStudyState[i] || (pastorStudyState[i] = {});
+        st.buildDenom = btn.getAttribute("data-denom-pick");
+        render();
+      });
+    });
     document.querySelectorAll("[data-build-go]").forEach(function(btn){
       btn.addEventListener("click", function(){
         var i = parseInt(btn.getAttribute("data-build-go"),10);
@@ -2714,7 +2936,7 @@
         var st = pastorStudyState[i] || {};
         var minutes = st.buildMinutes || 20;
         var sessionCount = st.buildSeries === "series" ? (st.buildWeeks||3) : 1;
-        beginLectureProject({mode:"study", studyId: studyId, weekIndex: i}, minutes, sessionCount);
+        beginLectureProject({mode:"study", studyId: studyId, weekIndex: i, denomination: st.buildDenom}, minutes, sessionCount);
       });
     });
   }
@@ -2750,6 +2972,7 @@
   }
 
   function screenPastorOccasion(){
+    if (!occasionState.denom) occasionState.denom = (state.me && state.me.denomination) || "none";
     var html = '<div class="wrap-narrow">';
     html += '<div style="margin:22px 0 16px;"><span class="eyebrow">Not Sure Where to Start?</span><h1 style="font-size:27px;margin-top:4px;">Build From a Feeling or Occasion</h1>' +
       '<p class="muted" style="margin-top:8px;">Tell us what this reading is for, and we\'ll choose whatever passages fit best &mdash; one part of the Bible, or many, whatever the moment calls for.</p></div>';
@@ -2771,6 +2994,10 @@
     html += '</div>';
 
     html += '<div class="section" style="background:var(--surface);margin-top:16px;">';
+    html += '<p class="hint" style="margin-bottom:8px;">Write this for which denomination or tradition?</p>';
+    html += '<div class="choice-grid" style="margin-bottom:14px;">' + DENOMS.map(function(d){
+      return '<button type="button" class="choice'+(occasionState.denom===d[0]?" active":"")+'" data-po-denom="'+d[0]+'">'+d[1]+'</button>';
+    }).join("") + '</div>';
     html += '<p class="hint" style="margin-bottom:10px;">One sermon, or a series?</p>';
     html += '<div class="btn-row" style="gap:8px;margin-bottom:14px;">' +
       '<button type="button" class="choice'+(occasionState.series==="single"?" active":"")+'" data-po-series="single">One Sermon</button>' +
@@ -2815,6 +3042,9 @@
     document.querySelectorAll("[data-po-min]").forEach(function(btn){
       btn.addEventListener("click", function(){ occasionState.minutes = parseInt(btn.getAttribute("data-po-min"),10); render(); });
     });
+    document.querySelectorAll("[data-po-denom]").forEach(function(btn){
+      btn.addEventListener("click", function(){ occasionState.denom = btn.getAttribute("data-po-denom"); render(); });
+    });
     on("po-build","click", function(){
       var errEl = document.getElementById("po-err");
       if (!occasionState.pickedKeys.length && !occasionState.custom.trim()){
@@ -2823,7 +3053,7 @@
       }
       var labels = occasionState.pickedKeys.map(function(k){ var lbl=""; OCCASIONS.forEach(function(o){ if(o[0]===k) lbl=o[1]; }); return lbl; });
       var sessionCount = occasionState.series === "series" ? occasionState.weeks : 1;
-      beginLectureProject({mode:"occasion", occasionKeys: occasionState.pickedKeys.slice(), occasionLabels: labels, customText: occasionState.custom.trim()}, occasionState.minutes, sessionCount);
+      beginLectureProject({mode:"occasion", occasionKeys: occasionState.pickedKeys.slice(), occasionLabels: labels, customText: occasionState.custom.trim(), denomination: occasionState.denom}, occasionState.minutes, sessionCount);
     });
   }
 
@@ -2834,6 +3064,7 @@
       title: "", targetMinutes: minutes, sessionCount: sessionCount || 1,
       sessions: [], activeSession: 0, loading: true, error: null, createdAt: null
     };
+    base.denomination = source.denomination || (state.me && state.me.denomination) || "none";
     if (source.mode === "study"){
       var study = STUDY_BY_ID[source.studyId];
       var week = study.weeks[source.weekIndex];
@@ -2887,7 +3118,8 @@
 
   function buildLecturePrompt(lec, wordTarget){
     var multi = (lec.sessionCount||1) > 1;
-    var p = "You are helping a pastor or Bible study leader prepare ";
+    var p = "Denomination/tradition to write for: " + denomLabel(lec.denomination) + ". Keep teaching Christ-centered and do not take sides on denominational disputes, but use natural, familiar language, phrasing, and emphasis for this tradition throughout.\n\n";
+    p += "You are helping a pastor or Bible study leader prepare ";
     p += multi ? ("a "+lec.sessionCount+"-part lecture/sermon SERIES (like a short-term church Bible study, one part per week) ") : "a single lecture/sermon ";
     p += "for VERBAL delivery to a group.\n\n";
     if (lec.source === "study"){
@@ -2945,7 +3177,12 @@
 
     var html = '<div class="wrap">';
     html += '<div class="no-print" style="margin:22px 0 6px;"><span class="eyebrow">'+(lec.source==="occasion"?esc(sourceLabel):sourceLabel)+' &middot; ~'+lec.targetMinutes+' min'+(sessions.length>1?(' per week &middot; '+sessions.length+'-week series'):'')+'</span></div>';
-    html += '<div class="field no-print" style="margin-bottom:6px;"><input class="input" id="lec-title" value="'+esc(lec.title)+'" style="font-family:var(--font-display);font-size:22px;font-weight:700;padding:10px 12px;"></div>';
+    html += pageIntroHtml("lecture",
+      "How do I edit and print this?",
+      '<p>This is your draft. Tap directly on the title or any block of text to edit it &mdash; nothing here is locked.</p>' +
+      '<p>Use the buttons below the content to add another block (an illustration, a point, a closing prayer, and more). <strong>Save Draft</strong> keeps your changes; <strong>Print</strong> gives you a clean, paper-ready copy with none of the editing buttons on it.</p>' +
+      (sessions.length > 1 ? '<p>This is a multi-week series &mdash; use the numbered tabs above to switch between weeks. Printing only prints the week you\'re currently viewing.</p>' : '')) +
+    '<div class="field no-print" style="margin-bottom:6px;"><input class="input" id="lec-title" value="'+esc(lec.title)+'" style="font-family:var(--font-display);font-size:22px;font-weight:700;padding:10px 12px;"></div>';
     html += '<h1 class="lecture-print-title">'+esc(lec.title)+'</h1>';
     if (lec.source === "study"){
       html += '<p class="hint no-print" style="margin-bottom:10px;">'+esc(lec.weekRef)+'</p>';
@@ -3154,6 +3391,12 @@
     var html = '<div class="wrap-narrow">';
     html += '<div style="margin:22px 0 16px;"><span class="eyebrow">Just For You</span><h1 style="font-size:28px;margin-top:4px;">Daily Devotional</h1><p class="muted" style="margin-top:8px;">A short reading, a reflection, and a prayer &mdash; a few minutes with the Word, any day you like.</p></div>';
 
+    html += pageIntroHtml("devotional",
+      "How does the devotional work?",
+      '<p>Use the calendar or arrows below to pick a day &mdash; today\'s devotional is ready right away, and you can look back at any past day too.</p>' +
+      '<p>Tap <strong>Mark as Done</strong> when you finish reading to keep your streak going, and tap <strong>Print This Day</strong> if you\'d rather read it on paper.</p>' +
+      '<p>This devotional is written just for you, based only on your own profile &mdash; it\'s never shared or shown to anyone else, even in a group.</p>');
+
     if (dv.progress){
       var days = dv.progress.days || {};
       var doneCount = Object.keys(days).filter(function(k){ return days[k]; }).length;
@@ -3170,13 +3413,13 @@
         var prev = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, parseInt(parts[2],10)-1);
         cursorKey = dateKeyFor(prev.getFullYear(), prev.getMonth(), prev.getDate());
       }
-      html += '<div class="section card-tight" style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:18px;">' +
+      html += '<div class="section card-tight no-print" style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:18px;">' +
         '<div><span class="eyebrow">Completed</span><p style="font-family:var(--font-display);font-size:22px;margin-top:2px;">'+doneCount+'</p></div>' +
         (streak > 0 ? ('<div><span class="eyebrow">Current Streak</span><p style="font-family:var(--font-display);font-size:22px;margin-top:2px;">'+streak+' day'+(streak===1?'':'s')+'</p></div>') : '') +
       '</div>';
     }
 
-    html += '<div class="card">';
+    html += '<div class="card no-print">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">' +
       '<button type="button" class="btn btn-ghost" id="dv-prev">'+ICON_ARROW.replace('d="M9 5l7 7-7 7"','d="M15 5l-7 7 7 7"')+'</button>' +
       '<h3 style="font-family:var(--font-display);font-size:19px;">'+MONTH_NAMES[dv.viewMonth]+' '+dv.viewYear+'</h3>' +
@@ -3230,16 +3473,24 @@
     var c = dv.content;
     var done = !!(dv.progress && dv.progress.days && dv.progress.days[key]);
     var html = '<div class="section" style="border-left:4px solid var(--plum);">';
-    html += '<div class="section-head"><h3>'+esc(label)+'’s Reading</h3><span class="tag tag-alone">'+ICON_BOOK+' '+esc(c.reference||"")+'</span></div>';
+    html += '<h1 class="lecture-print-title">'+esc(label)+'&rsquo;s Reading</h1>';
+    html += '<p class="lecture-print-ref">'+esc(c.reference||"")+' &middot; Honouring Him Daily Devotional</p>';
+    html += '<div class="section-head no-print"><h3>'+esc(label)+'’s Reading</h3><span class="tag tag-alone">'+ICON_BOOK+' '+esc(c.reference||"")+'</span></div>';
     html += '<div class="summary-text" style="margin-bottom:14px;">'+linkGlossary(c.scriptureSummary||"")+'</div>';
-    html += '<div class="divider"></div>';
+    html += '<div class="divider no-print"></div>';
     html += '<h4 style="font-size:15px;margin-bottom:8px;">Reflection</h4>';
     html += '<p style="font-size:15px;line-height:1.7;margin-bottom:16px;">'+nl2br(c.reflection||"")+'</p>';
     html += '<div class="banner banner-info"><span>'+ICON_HANDS+'</span><span><strong>Prayer:</strong> '+esc(c.prayer||"")+'</span></div>';
-    html += '<button type="button" class="btn '+(done?"btn-primary":"btn-outline")+' btn-block" id="dv-mark-done" style="margin-top:16px;">'+(done?(ICON_CHECK+" Done"):"Mark This Reading Done")+'</button>';
+    html += '<div class="devo-print-prayer"><strong>Prayer:</strong> '+esc(c.prayer||"")+'</div>';
+    html += '<div class="print-progress-note">Name: '+esc((state.me&&state.me.name)||"")+' &nbsp;&nbsp;&nbsp; Completed on: ________________</div>';
+    html += '<div class="btn-row no-print" style="margin-top:16px;gap:10px;flex-wrap:wrap;">';
+    html += '<button type="button" class="btn '+(done?"btn-primary":"btn-outline")+'" id="dv-mark-done" style="flex:1;min-width:200px;">'+(done?(ICON_CHECK+" Done"):"Mark This Reading Done")+'</button>';
+    html += '<button type="button" class="btn btn-outline" id="dv-print">'+ICON_BOOK+' Print This Day</button>';
+    html += '</div>';
     html += '</div>';
     mount.innerHTML = html;
     on("dv-mark-done","click", function(){ toggleDevotionalDone(key); });
+    on("dv-print","click", function(){ window.print(); });
   }
 
   function loadDevotionalProgress(){
@@ -3257,10 +3508,12 @@
 
   function loadDevotionalContent(key){
     var dv = ensureDevotionalState();
+    var denom = (state.me && state.me.denomination) || "none";
+    var docKey = key + "_" + denom;
     dv.contentLoading = true; dv.contentForDate = key; dv.contentError = null; dv.content = null;
     renderDevotionalContent();
     getDb().then(function(db){
-      var ref = db ? db.doc("devotionals/"+key) : null;
+      var ref = db ? db.doc("devotionals/"+docKey) : null;
       var cached = ref ? ref.get().then(function(snap){ return snap.exists ? snap.data() : null; }).catch(function(){ return null; }) : Promise.resolve(null);
       cached.then(function(existing){
         if (dv.selectedDate !== key) return;
@@ -3276,10 +3529,10 @@
             renderDevotionalContent();
             return;
           }
-          sample.json(buildDevotionalPrompt(), {modelTier:"complex"}).then(function(data){
+          sample.json(buildDevotionalPrompt(denom), {modelTier:"complex"}).then(function(data){
             if (dv.selectedDate !== key) return;
             dv.content = data; dv.contentLoading = false; renderDevotionalContent();
-            if (ref) ref.set(Object.assign({date:key}, data, {generatedAt: new Date().toISOString()})).catch(function(){});
+            if (ref) ref.set(Object.assign({date:key, denomination:denom}, data, {generatedAt: new Date().toISOString()})).catch(function(){});
           }).catch(function(err){
             if (dv.selectedDate !== key) return;
             dv.contentLoading = false;
@@ -3291,8 +3544,9 @@
     });
   }
 
-  function buildDevotionalPrompt(){
+  function buildDevotionalPrompt(denom){
     var p = "Write ONE short daily devotional reading for a Christian Bible app, meant for a solo 5-10 minute reading.\n";
+    p += "Denomination/tradition: " + denomLabel(denom) + ". Keep teaching simple, warm, and Christ-centered; do not take sides on denominational disputes, but you may use natural, familiar language, phrasing, and emphasis for this tradition.\n";
     p += "Choose any scripture passage well-suited to daily devotional reading — Psalms, Proverbs, the Gospels, the Epistles, Old Testament narrative, anywhere — and vary your choice; avoid only ever picking the handful of most famous verses.\n\n";
     p += "Reply with ONLY a JSON object:\n{\n";
     p += '  "reference": "the scripture reference chosen",\n';
@@ -3352,7 +3606,7 @@
     html += '<div style="margin:22px 0 16px;"><span class="eyebrow">How It Works</span><h1 style="font-size:28px;margin-top:4px;">Help &amp; Walkthrough</h1>' +
       '<p class="muted" style="margin-top:8px;">Everything Honouring Him can do, in one place.</p></div>';
 
-    html += helpSection("Getting Started", '<p style="font-size:14.5px;line-height:1.7;">Fill out your profile once (name, age, gender, and a few optional questions that help personalize your stories). It saves to this device automatically. To pick your profile back up on another device, save your sign-in code the first time you’re shown one, then use &ldquo;Already have a Honouring Him sign-in code?&rdquo; on the profile screen to sign in there too.</p>');
+    html += helpSection("Getting Started", '<p style="font-size:14.5px;line-height:1.7;">Fill out your profile once &mdash; only your name is required. A switch on that page lets you choose whether to personalize: turn it on and answer a few optional questions to shape your Bible study stories around your own life, or leave it off and we\'ll just use your name to say hello (every story will feature new, made-up people instead). It saves to this device automatically. To pick your profile back up on another device, save your sign-in code the first time you’re shown one, then use &ldquo;Already have a Honouring Him sign-in code?&rdquo; on the profile screen to sign in there too.</p>');
 
     html += helpSection("Studying Alone or With a Group", '<p style="font-size:14.5px;line-height:1.7;">From Home, choose <strong>Study Alone</strong> for a solo journey, or <strong>Host a Group</strong> to lead family, friends, or a church group through a study together. Hosting gives you a shareable code &mdash; everyone else taps <strong>Join a Group</strong> and enters it. Everyone sees the same readings and story each week; only the host sees the discussion questions and leader tips.</p>');
 
@@ -3382,6 +3636,10 @@
   function screenGlossary(){
     var html = '<div class="wrap-narrow">';
     html += '<div style="margin:22px 0 18px;"><span class="eyebrow">Bible Glossary</span><h1 style="font-size:28px;margin-top:4px;">What does that word mean?</h1><p class="muted" style="margin-top:8px;">Search any word you come across in your reading. Words underlined inside your studies can also be tapped directly.</p></div>';
+    html += pageIntroHtml("glossary",
+      "How do I use this?",
+      '<p>Type any word into the search box below &mdash; things like "covenant," "grace," or "Pentecost" &mdash; and its plain-language meaning will show up underneath.</p>' +
+      '<p>Leave the box empty to browse every word in the glossary.</p>');
     html += '<div class="gloss-search">'+ICON_SEARCH+'<input class="input" id="gl-search" placeholder="Try “covenant,” “grace,” or “Pentecost”&hellip;" value="'+esc(glossState.query)+'" autocomplete="off"></div>';
     html += '<div class="card" id="gl-results"></div>';
     html += '</div>';
