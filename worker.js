@@ -8,8 +8,8 @@
 // and Step 5 for how to add it to this project as GROQ_API_KEY.
 
 const MODEL_FOR_TIER = {
-  quick: "llama-3.1-8b-instant",
-  complex: "llama-3.3-70b-versatile"
+  quick: "openai/gpt-oss-20b",
+  complex: "openai/gpt-oss-120b"
 };
 
 const SYSTEM_PROMPT =
