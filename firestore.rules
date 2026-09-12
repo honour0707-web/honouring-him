@@ -1,0 +1,68 @@
+// Firestore Security Rules for the standalone Honouring Him deployment.
+//
+// Honest note (same as the app's own disclosures): this app never had real
+// per-person accounts — even inside Claude, "signing in" was always just a
+// 6-character code, not a password. These rules keep that same lightweight
+// model: anyone whose browser has completed Firebase's silent, invisible
+// "anonymous sign-in" (no email, no password, no visible step for the user)
+// can read and write. That blocks drive-by scripts and scrapers with no
+// Firebase credentials at all, but it is NOT per-customer data isolation —
+// every visitor is still trusting every other visitor with a shared code
+// system, exactly as before.
+//
+// Deploy with: firebase deploy --only firestore:rules
+// (after `firebase init firestore` in this folder, using the same project
+// you created for this app — see SETUP-GUIDE.md).
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /people/{code} {
+      allow read, write: if signedIn();
+    }
+
+    match /groups/{code} {
+      allow read, write: if signedIn();
+
+      match /content/{studyId} {
+        allow read, write: if signedIn();
+      }
+      match /memberProgress/{personId} {
+        allow read, write: if signedIn();
+      }
+      match /responses/{responseId} {
+        allow read, write: if signedIn();
+      }
+      match /completedStudies/{studyId} {
+        allow read, write: if signedIn();
+      }
+    }
+
+    match /lectures/{lectureId} {
+      allow read, write: if signedIn();
+    }
+
+    match /leaderIdeas/{ideaId} {
+      allow read, write: if signedIn();
+    }
+
+    match /devotionals/{dateKey} {
+      allow read, write: if signedIn();
+    }
+
+    match /devotionalProgress/{personId} {
+      allow read, write: if signedIn();
+    }
+
+    match /glossary/{term} {
+      allow read, write: if signedIn();
+    }
+
+    // Anything not explicitly listed above is closed by default.
+  }
+}

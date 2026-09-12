@@ -1,0 +1,90 @@
+// OPTIONAL — Cloudflare Workers AI version of /api/generate.
+//
+// The live generate.js in this folder uses Groq (free, external, works on
+// any Cloudflare account with no extra approval). This file calls
+// Cloudflare's OWN built-in free AI instead. It's also free, but on some
+// Cloudflare accounts enabling Workers AI for the first time prompts a
+// "book a demo" / sales-contact screen rather than turning on instantly —
+// if that happens to you, stick with generate.js (Groq) instead, or try
+// this again later once your account is approved.
+//
+// To use this instead: delete generate.js, rename this file to generate.js,
+// then in your Cloudflare Pages project go to Settings > Bindings > Add >
+// Workers AI, name the binding exactly "AI", and redeploy.
+
+const MODEL_FOR_TIER = {
+  quick: "@cf/meta/llama-3.1-8b-instruct-fast",
+  complex: "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+};
+
+const SYSTEM_PROMPT =
+  "You reply with ONLY a single valid JSON object and nothing else — no " +
+  "prose, no markdown code fences, no commentary before or after it. If " +
+  "you are unsure, still return your best-effort JSON in the requested shape.";
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "bad_request", code: "bad_request" }, 400);
+  }
+
+  const prompt = body && body.prompt;
+  if (!prompt || typeof prompt !== "string") {
+    return jsonResponse({ error: "missing_prompt", code: "bad_request" }, 400);
+  }
+  if (!env.AI) {
+    return jsonResponse({ error: "server_not_configured", code: "not_declared" }, 500);
+  }
+
+  const modelTier = body.modelTier === "quick" ? "quick" : "complex";
+  const model = MODEL_FOR_TIER[modelTier];
+
+  let result;
+  try {
+    result = await env.AI.run(model, {
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 4096
+    });
+  } catch (err) {
+    const msg = String((err && err.message) || err || "");
+    const isLimit = /rate|limit|quota|neuron|429/i.test(msg);
+    return jsonResponse(
+      { error: "upstream_error", code: isLimit ? "rate_limited" : "refused", detail: msg.slice(0, 500) },
+      isLimit ? 429 : 502
+    );
+  }
+
+  const text = (result && result.response) || "";
+  const parsed = extractJson(text);
+  if (parsed === null) {
+    return jsonResponse({ error: "invalid_json", code: "invalid_json" }, 502);
+  }
+  return jsonResponse(parsed, 200);
+}
+
+function extractJson(text) {
+  var trimmed = (text || "").trim();
+  trimmed = trimmed.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  var first = trimmed.indexOf("{");
+  var last = trimmed.lastIndexOf("}");
+  if (first === -1 || last === -1 || last < first) return null;
+  try {
+    return JSON.parse(trimmed.slice(first, last + 1));
+  } catch (e) {
+    return null;
+  }
+}
+
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status,
+    headers: { "content-type": "application/json" }
+  });
+}

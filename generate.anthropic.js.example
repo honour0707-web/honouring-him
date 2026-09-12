@@ -1,0 +1,97 @@
+// OPTIONAL — Claude-backed version of /api/generate.
+//
+// The live generate.js in this folder uses Cloudflare Workers AI, which is
+// free. This file is the original Claude (Anthropic)-backed version, kept
+// here in case you ever want the higher writing quality of Claude instead,
+// and are fine with a small ongoing cost billed to you per generation.
+//
+// To use this instead: delete generate.js, rename this file to generate.js,
+// then in your Cloudflare Pages project go to Settings > Environment
+// variables, add ANTHROPIC_API_KEY (mark it "Encrypt") with a key from
+// https://console.anthropic.com, and redeploy.
+
+const MODEL_FOR_TIER = {
+  quick: "claude-haiku-4-5-20251001",
+  complex: "claude-sonnet-5"
+};
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "bad_request", code: "bad_request" }, 400);
+  }
+
+  const prompt = body && body.prompt;
+  if (!prompt || typeof prompt !== "string") {
+    return jsonResponse({ error: "missing_prompt", code: "bad_request" }, 400);
+  }
+  if (!env.ANTHROPIC_API_KEY) {
+    return jsonResponse({ error: "server_not_configured", code: "not_declared" }, 500);
+  }
+
+  const modelTier = body.modelTier === "quick" ? "quick" : "complex";
+  const model = MODEL_FOR_TIER[modelTier];
+
+  let upstream;
+  try {
+    upstream = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 8000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+  } catch (err) {
+    return jsonResponse({ error: "network_error", code: "refused" }, 502);
+  }
+
+  if (!upstream.ok) {
+    const code = upstream.status === 429 ? "rate_limited" : "refused";
+    let detail = "";
+    try { detail = await upstream.text(); } catch (e) {}
+    return jsonResponse({ error: "upstream_error", code: code, detail: detail.slice(0, 500) }, upstream.status);
+  }
+
+  let data;
+  try {
+    data = await upstream.json();
+  } catch (e) {
+    return jsonResponse({ error: "invalid_upstream_response", code: "invalid_json" }, 502);
+  }
+
+  const text = (data.content && data.content[0] && data.content[0].text) || "";
+  const parsed = extractJson(text);
+  if (parsed === null) {
+    return jsonResponse({ error: "invalid_json", code: "invalid_json" }, 502);
+  }
+  return jsonResponse(parsed, 200);
+}
+
+function extractJson(text) {
+  var trimmed = (text || "").trim();
+  var first = trimmed.indexOf("{");
+  var last = trimmed.lastIndexOf("}");
+  if (first === -1 || last === -1 || last < first) return null;
+  try {
+    return JSON.parse(trimmed.slice(first, last + 1));
+  } catch (e) {
+    return null;
+  }
+}
+
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status,
+    headers: { "content-type": "application/json" }
+  });
+}
