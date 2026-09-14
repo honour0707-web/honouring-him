@@ -6,4 +6,7 @@ compatibility_date = "2026-01-01"
 directory = "."
 binding = "ASSETS"
 
-
+[[secrets_store_secrets]]
+binding = "GROQ_API_KEY"
+store_id = "eddd78e24a044a61b6bd157f3c21ef59"
+secret_name = "GROQ_API_KEY"
