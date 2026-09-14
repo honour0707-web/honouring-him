@@ -44,7 +44,7 @@ async function handleGenerate(request, env) {
   }
   if (!env.GROQ_API_KEY) {
     return jsonResponse({ error: "server_not_configured", code: "not_declared" }, 500);
-  }
+  }  const groqKey = (env.GROQ_API_KEY && typeof env.GROQ_API_KEY.get === "function") ? await env.GROQ_API_KEY.get() : env.GROQ_API_KEY;
 
   const modelTier = body.modelTier === "quick" ? "quick" : "complex";
   const model = MODEL_FOR_TIER[modelTier];
@@ -55,7 +55,7 @@ async function handleGenerate(request, env) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "authorization": "Bearer " + env.GROQ_API_KEY
+        "authorization": "Bearer " + groqKey
       },
       body: JSON.stringify({
         model: model,
